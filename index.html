@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=1.0">
     <title>Просмотр LaTeX (ZeroPayGPT)</title>
-    
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww" crossorigin="anonymous">
-    
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-wcPFSQnlgIUxLsAgCVD5UVSNvAPBOE73CSKZEtd0plAVPcnIWCvFq_sK33B2__Pq" crossorigin="anonymous">
+
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" integrity="sha384-hIoBPJpTUs74ddyc4bFZSM1TVlQDA60VBbJS0oA934VSz82sBx1X7kSx2ATBDIyd" crossorigin="anonymous"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="customKatexInit();"></script>
-    
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" integrity="sha384-hIoBPJpTUs74ddyc4bTwzVMKExtnpC1wO3_ZdBzZ8Wj_K9vF_rZSMJ1fK_Y7JDRf" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" integrity="sha384-43gRccClqG6R9LWTebN7P/wOefEY6FuL0kL1oG_Lp/N_L3yEML9p_wA2Y2uJ2b2z" crossorigin="anonymous" onload="customKatexInit();"></script>
+
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -25,19 +25,19 @@
             padding-bottom: 80px; /* Отступ снизу для кнопки */
         }
         #content {
-            white-space: pre-wrap;  
+            white-space: pre-wrap; 
             font-size: 16px;
             line-height: 1.6;
         }
-        .katex-display {  
+        .katex-display { 
             display: block;
-            overflow-x: auto;  
+            overflow-x: auto; 
             overflow-y: hidden;
             padding: 0.5em 0;
             margin: 1em 0;
         }
         .katex {
-            font-size: 1.1em;  
+            font-size: 1.1em; 
         }
         #closeButtonContainer {
             position: fixed;
@@ -67,7 +67,7 @@
 </head>
 <body>
     <div id="content">Загрузка данных... Пожалуйста, подождите.</div>
-    
+
     <div id="closeButtonContainer" style="display: none;"> <button id="closeButton">Закрыть</button>
     </div>
 
@@ -75,129 +75,110 @@
         let katexReady = false;
         let domReady = false;
         let textToDisplay = null;
-        const contentDivGlobal = document.getElementById('content'); // Get reference early
+        const contentDivGlobal = document.getElementById('content'); // Get it once
 
         function performLatexRender() {
-            console.log(`performLatexRender CALLED. katexReady: ${katexReady}, domReady: ${domReady}, textToDisplay is null: ${textToDisplay === null}, text: '${textToDisplay ? textToDisplay.substring(0, 70) + "..." : "null"}'`);
+            console.log("[performLatexRender] Called. katexReady:", katexReady, "domReady:", domReady, "textToDisplay is null?", textToDisplay === null);
+            if (textToDisplay !== null) {
+                console.log("[performLatexRender] textToDisplay content:", textToDisplay);
+            }
+
             if (katexReady && domReady && textToDisplay !== null) {
-                console.log("performLatexRender: All conditions met. Rendering content.");
-                contentDivGlobal.textContent = textToDisplay; // Безопасная вставка текста
+                console.log("[performLatexRender] Conditions met. Setting contentDiv.textContent.");
+                contentDivGlobal.textContent = textToDisplay; 
 
                 if (typeof renderMathInElement === "function") {
-                    console.log("performLatexRender: renderMathInElement is a function. Calling it.");
+                    console.log("[performLatexRender] Calling renderMathInElement.");
                     try {
                         renderMathInElement(contentDivGlobal, {
                             delimiters: [
                                 {left: "$$", right: "$$", display: true},
                                 {left: "\\[", right: "\\]", display: true},
                                 {left: "\\(", right: "\\)", display: false},
-                                // {left: "$", right: "$", display: false}  
                             ],
                             throwOnError: false,
                             ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"]
                         });
-                        console.log("performLatexRender: renderMathInElement finished.");
-                    } catch (e) {
-                        console.error("Error during renderMathInElement execution:", e);
-                        contentDivGlobal.textContent = "Ошибка при рендеринге LaTeX-формул.\n\n" + textToDisplay;
+                        console.log("[performLatexRender] renderMathInElement finished.");
+                    } catch (katexError) {
+                        console.error("[performLatexRender] Error during renderMathInElement:", katexError);
+                        contentDivGlobal.textContent = "Ошибка при рендеринге формул KaTeX.\n\n" + textToDisplay;
                     }
                 } else {
-                    console.error("KaTeX: функция renderMathInElement не определена, хотя скрипт должен был загрузиться.");
-                    contentDivGlobal.textContent = "Ошибка: Библиотека для отображения формул (KaTeX) не смогла инициализироваться.\n\n" + textToDisplay;
+                    console.error("[performLatexRender] KaTeX: функция renderMathInElement не определена.");
+                    contentDivGlobal.textContent = "Ошибка: Библиотека для отображения формул (KaTeX) не смогла инициализироваться (renderMathInElement not found).\n\n" + textToDisplay;
                 }
             } else {
-                console.log("performLatexRender: Conditions not met. No render action taken yet.");
+                console.log("[performLatexRender] Conditions NOT met or textToDisplay is null.");
             }
         }
 
         function customKatexInit() {
-            console.log("customKatexInit CALLED (KaTeX auto-render script onload event).");
+            console.log("[customKatexInit] KaTeX auto-render script загружен.");
             katexReady = true;
             performLatexRender();
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            console.log("DOMContentLoaded EVENT FIRED.");
-            
-            try {
-                if (window.Telegram && window.Telegram.WebApp) {
-                    const tg = window.Telegram.WebApp;
-                    console.log("Telegram SDK found. Initializing.");
-                    tg.ready(); 
-                    tg.expand();
+            console.log("[DOMContentLoaded] DOM полностью загружен и разобран.");
+            const tg = window.Telegram.WebApp;
+            tg.ready(); 
+            tg.expand(); 
 
-                    const closeButtonContainer = document.getElementById('closeButtonContainer');
-                    const closeButton = document.getElementById('closeButton');
+            const closeButtonContainer = document.getElementById('closeButtonContainer');
+            const closeButton = document.getElementById('closeButton');
 
-                    if (tg.platform === 'unknown') {
-                        console.log("Telegram platform is 'unknown'. Hiding close button container via class.");
-                        document.body.classList.add('platform-unknown');
-                    } else {
-                        console.log(`Telegram platform: ${tg.platform}. Showing close button container.`);
-                        closeButtonContainer.style.display = 'block';
-                    }
-                    
-                    closeButton.addEventListener('click', function() {
-                        console.log("Close button clicked.");
-                        tg.close();
-                    });
-                    
-                    if (tg.themeParams) {
-                        console.log("Applying Telegram theme params.");
-                        document.body.style.backgroundColor = tg.themeParams.bg_color || '#ffffff';
-                        document.body.style.color = tg.themeParams.text_color || '#000000';
-                        closeButton.style.backgroundColor = tg.themeParams.button_color || '#007bff';
-                        closeButton.style.color = tg.themeParams.button_text_color || '#ffffff';
-                        if (tg.themeParams.secondary_bg_color) {
-                            closeButtonContainer.style.backgroundColor = tg.themeParams.secondary_bg_color;
-                        }
-                    } else {
-                        console.log("No Telegram theme params found.");
-                    }
-                } else {
-                    console.warn("Telegram WebApp SDK (window.Telegram.WebApp) not found. Running in standalone browser mode.");
-                    document.body.classList.add('platform-unknown'); // Hide button if no SDK
+            if (tg.platform === 'unknown') {
+                document.body.classList.add('platform-unknown');
+            } else {
+                closeButtonContainer.style.display = 'block';
+            }
+
+            closeButton.addEventListener('click', function() {
+                tg.close();
+            });
+
+            if (tg.themeParams) {
+                console.log("[DOMContentLoaded] Applying Telegram theme params.");
+                document.body.style.backgroundColor = tg.themeParams.bg_color || '#ffffff';
+                document.body.style.color = tg.themeParams.text_color || '#000000';
+                closeButton.style.backgroundColor = tg.themeParams.button_color || '#007bff';
+                closeButton.style.color = tg.themeParams.button_text_color || '#ffffff';
+                if (tg.themeParams.secondary_bg_color) {
+                    closeButtonContainer.style.backgroundColor = tg.themeParams.secondary_bg_color;
                 }
-            } catch (e) {
-                console.error("Error during Telegram WebApp SDK initialization:", e);
             }
 
             const urlParams = new URLSearchParams(window.location.search);
             const encodedData = urlParams.get('data');
-            console.log(`DOMContentLoaded: encodedData from URL (?data=): '${encodedData === null ? "null" : encodedData.substring(0,70)+"..."}'`);
+            console.log("[DOMContentLoaded] Encoded data from URL:", encodedData);
 
-            if (encodedData !== null && typeof encodedData === 'string') { // Ensure it's a string and not null
-                if (encodedData === "") {
-                    console.log("DOMContentLoaded: encodedData is an empty string. No data to display.");
-                    contentDivGlobal.textContent = "Нет данных для отображения (параметр 'data' пуст).";
-                    textToDisplay = null; // Explicitly set to null
-                } else {
-                    try {
-                        console.log("DOMContentLoaded: Attempting to decode data...");
-                        const base64Decoded = atob(decodeURIComponent(encodedData)); 
-                        const uint8Array = new Uint8Array(base64Decoded.length);
-                        for (let i = 0; i < base64Decoded.length; i++) {
-                            uint8Array[i] = base64Decoded.charCodeAt(i);
-                        }
-                        textToDisplay = new TextDecoder().decode(uint8Array);
-                        console.log(`DOMContentLoaded: Successfully decoded textToDisplay: '${textToDisplay.substring(0, 70)}...'`);
-                    } catch (e) {
-                        console.error("WebApp: Ошибка декодирования данных из URL:", e);
-                        let errorMessage = "Ошибка отображения данных (декодирование). Возможно, они повреждены.\n\n";
-                        if (e.name) errorMessage += `Тип: ${e.name}\n`;
-                        if (e.message) errorMessage += `Сообщение: ${e.message}\n`;
-                        contentDivGlobal.textContent = errorMessage;
-                        textToDisplay = null; 
+            if (encodedData) {
+                try {
+                    console.log("[DOMContentLoaded] Attempting to decode data:", encodedData);
+                    const base64Decoded = atob(decodeURIComponent(encodedData)); 
+                    console.log("[DOMContentLoaded] Base64 decoded (raw):", base64Decoded.substring(0,100) + "..."); // Log first 100 chars
+
+                    const uint8Array = new Uint8Array(base64Decoded.length);
+                    for (let i = 0; i < base64Decoded.length; i++) {
+                        uint8Array[i] = base64Decoded.charCodeAt(i);
                     }
+                    textToDisplay = new TextDecoder().decode(uint8Array);
+                    console.log("[DOMContentLoaded] Successfully decoded textToDisplay:", textToDisplay.substring(0,100) + "...");
+                } catch (e) {
+                    console.error("[DOMContentLoaded] WebApp: Ошибка декодирования данных из URL:", e);
+                    let errorMessage = "Ошибка отображения данных (декодирование). Возможно, они повреждены.\n\n";
+                    if (e.name) errorMessage += `Тип: ${e.name}\n`;
+                    if (e.message) errorMessage += `Сообщение: ${e.message}\n`;
+                    contentDivGlobal.textContent = errorMessage; // Display error here
+                    textToDisplay = null; 
                 }
             } else {
-                contentDivGlobal.textContent = "Нет данных для отображения (параметр 'data' отсутствует или некорректен).";
-                console.log("DOMContentLoaded: 'data' parameter is missing or not a string.");
+                console.log("[DOMContentLoaded] No 'data' parameter in URL.");
+                contentDivGlobal.textContent = "Нет данных для отображения (параметр 'data' отсутствует).";
                 textToDisplay = null;
             }
-            
             domReady = true;
-            console.log("DOMContentLoaded: domReady flag set to true.");
             performLatexRender();
         });
     </script>
