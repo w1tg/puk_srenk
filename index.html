@@ -103,8 +103,28 @@
                         ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"] // Не искать LaTeX в этих тегах
                     });
                 } catch (e) {
-                    console.error("Ошибка WebApp:", e);
-                    contentDiv.textContent = "Ошибка отображения данных. Возможно, они повреждены или неверно закодированы. Подробности в консоли.";
+                    console.error("Ошибка WebApp:", e); // Это остается для удаленной отладки, если она возможна
+                    // Отображаем более детальную информацию об ошибке пользователю:
+                    let errorMessage = "Ошибка отображения данных. Возможно, они повреждены или неверно закодированы.\n\n";
+                    errorMessage += "Детали ошибки:\n";
+                    if (e.name) {
+                        errorMessage += `Тип: ${e.name}\n`;
+                    }
+                    if (e.message) {
+                        errorMessage += `Сообщение: ${e.message}\n`;
+                    }
+                    // Попытка получить stack trace, если доступно (может быть полезно)
+                    // if (e.stack) {
+                    //     errorMessage += `Стек: ${e.stack}\n`;
+                    // }
+                    // Также можно вывести сам encodedData, чтобы посмотреть, что приходит (но это может быть очень длинно)
+                    // if (encodedData.length < 200) { // Ограничим длину для отображения
+                    //    errorMessage += `\nПолученные закодированные данные (начало): ${encodedData.substring(0, 100)}...`;
+                    // } else {
+                    //    errorMessage += `\nПолученные закодированные данные (длина: ${encodedData.length}, начало): ${encodedData.substring(0, 100)}...`;
+                    // }
+
+                    contentDiv.textContent = errorMessage;
                 }
             } else {
                 contentDiv.textContent = "Нет данных для отображения (параметр 'data' отсутствует).";
