@@ -2,14 +2,15 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=1.0">
     <title>Просмотр LaTeX (ZeroPayGPT)</title>
+    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-wcPFSQnlgIUxLsAgCVD5UVSNvAPBOE73CSKZEtd0plAVPcnIWCvFq_sK33B2__Pq" crossorigin="anonymous">
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" integrity="sha384-hIoBPJpTUs74ddyc4bTwzVMKExtnpC1wO3_ZdBzZ8Wj_K9vF_rZSMJ1fK_Y7JDRf" crossorigin="anonymous"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" integrity="sha384-43gRccClqG6R9LWTebN7P/wOefEY6FuL0kL1oG_Lp/N_L3yEML9p_wA2Y2uJ2b2z" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" integrity="sha384-43gRccClqG6R9LWTebN7P/wOefEY6FuL0kL1oG_Lp/N_L3yEML9p_wA2Y2uJ2b2z" crossorigin="anonymous" onload="customKatexInit();"></script>
     
     <style>
         body {
@@ -21,29 +22,36 @@
             margin: 0;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            padding-bottom: 70px; /* Добавляем отступ снизу для кнопки */
+            padding-bottom: 80px; /* Отступ снизу для кнопки */
         }
         #content {
-            white-space: pre-wrap;
+            white-space: pre-wrap; 
             font-size: 16px;
             line-height: 1.6;
         }
-        .katex-display {
-            overflow-x: auto;
-            overflow-y: hidden;
+        .katex-display { 
             display: block;
+            overflow-x: auto; 
+            overflow-y: hidden;
+            padding: 0.5em 0;
             margin: 1em 0;
         }
         .katex {
-             font-size: 1.1em; /* Можно немного увеличить базовый размер LaTeX */
+             font-size: 1.1em; 
+        }
+        #closeButtonContainer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px 0;
+            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+            z-index: 1000;
         }
         #closeButton {
-            /* display: none; /* Управляется через JS */
-            position: fixed;
-            bottom: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 10px 20px;
+            padding: 10px 25px;
             background-color: var(--tg-theme-button-color, #007bff);
             color: var(--tg-theme-button-text-color, #ffffff);
             border: none;
@@ -51,34 +59,80 @@
             cursor: pointer;
             font-size: 16px;
             font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            z-index: 1000;
+        }
+        /* Скрываем контейнер кнопки, если мы не в Telegram */
+         body.platform-unknown #closeButtonContainer {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div id="content">Загрузка содержимого... Пожалуйста, подождите.</div>
-    <button id="closeButton" style="display: none;">Закрыть</button> <script>
+    <div id="content">Загрузка данных... Пожалуйста, подождите.</div>
+    
+    <div id="closeButtonContainer" style="display: none;"> <button id="closeButton">Закрыть</button>
+    </div>
+
+    <script>
+        let katexReady = false;
+        let domReady = false;
+        let textToDisplay = null;
+
+        function performLatexRender() {
+            if (katexReady && domReady && textToDisplay !== null) {
+                const contentDiv = document.getElementById('content');
+                contentDiv.textContent = textToDisplay; // Безопасная вставка текста
+
+                if (typeof renderMathInElement === "function") {
+                    renderMathInElement(contentDiv, {
+                        delimiters: [
+                            {left: "$$", right: "$$", display: true},
+                            {left: "\\[", right: "\\]", display: true},
+                            {left: "\\(", right: "\\)", display: false},
+                            // Раскомментируйте, если OpenAI использует одиночные $ для inline LaTeX
+                            // {left: "$", right: "$", display: false} 
+                        ],
+                        throwOnError: false, // Не останавливаться на ошибках в отдельных формулах
+                        ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"]
+                    });
+                } else {
+                    console.error("KaTeX: функция renderMathInElement не определена, хотя скрипт должен был загрузиться.");
+                    contentDiv.textContent = "Ошибка: Библиотека для отображения формул (KaTeX) не смогла инициализироваться.\n\n" + textToDisplay;
+                }
+            }
+        }
+
+        // Эта функция вызывается после загрузки скрипта KaTeX auto-render
+        function customKatexInit() {
+            console.log("KaTeX auto-render script загружен.");
+            katexReady = true;
+            performLatexRender();
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             const tg = window.Telegram.WebApp;
             tg.ready(); 
-            tg.expand();
+            tg.expand(); // Растянуть WebApp на весь экран
 
+            const closeButtonContainer = document.getElementById('closeButtonContainer');
             const closeButton = document.getElementById('closeButton');
-            // Показываем кнопку только если API доступно (т.е. открыто в Telegram)
-            if (tg.platform !== 'unknown' && tg.close) { 
-                closeButton.style.display = 'block';
-                closeButton.addEventListener('click', function() {
-                    tg.close();
-                });
+
+            if (tg.platform === 'unknown') {
+                document.body.classList.add('platform-unknown'); // Для CSS
+            } else {
+                 closeButtonContainer.style.display = 'block'; // Показать контейнер кнопки
             }
+            
+            closeButton.addEventListener('click', function() {
+                tg.close();
+            });
             
             if (tg.themeParams) {
                 document.body.style.backgroundColor = tg.themeParams.bg_color || '#ffffff';
                 document.body.style.color = tg.themeParams.text_color || '#000000';
-                if (closeButton.style.display === 'block' && tg.themeParams.button_color) {
-                    closeButton.style.backgroundColor = tg.themeParams.button_color;
-                    closeButton.style.color = tg.themeParams.button_text_color || '#ffffff';
+                closeButton.style.backgroundColor = tg.themeParams.button_color || '#007bff';
+                closeButton.style.color = tg.themeParams.button_text_color || '#ffffff';
+                if (tg.themeParams.secondary_bg_color) { // Если есть вторичный цвет фона для панели кнопки
+                    closeButtonContainer.style.backgroundColor = tg.themeParams.secondary_bg_color;
                 }
             }
 
@@ -88,43 +142,26 @@
 
             if (encodedData) {
                 try {
-                    // Порядок: сначала decodeURIComponent, потом atob
                     const base64Decoded = atob(decodeURIComponent(encodedData)); 
-                    
                     const uint8Array = new Uint8Array(base64Decoded.length);
                     for (let i = 0; i < base64Decoded.length; i++) {
                         uint8Array[i] = base64Decoded.charCodeAt(i);
                     }
-                    const decodedText = new TextDecoder().decode(uint8Array);
-
-                    contentDiv.textContent = decodedText;
-
-                    if (typeof renderMathInElement === "function") {
-                        renderMathInElement(contentDiv, {
-                            delimiters: [
-                                {left: "$$", right: "$$", display: true},
-                                {left: "\\[", right: "\\]", display: true},
-                                {left: "\\(", right: "\\)", display: false},
-                                // {left: "$", right: "$", display: false} // Оставляем закомментированным для начала
-                            ],
-                            throwOnError: false,
-                            ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"]
-                        });
-                    } else {
-                        console.error("renderMathInElement is not defined. KaTeX auto-render script might not have loaded correctly or in time.");
-                        contentDiv.textContent = "Ошибка: Не удалось загрузить библиотеку для отображения формул. Попробуйте обновить WebApp.\n\n" + decodedText;
-                    }
+                    textToDisplay = new TextDecoder().decode(uint8Array);
                 } catch (e) {
-                    console.error("Ошибка WebApp:", e);
-                    let errorMessage = "Ошибка отображения данных. Возможно, они повреждены или неверно закодированы.\n\n";
-                    errorMessage += "Детали ошибки:\n";
+                    console.error("WebApp: Ошибка декодирования данных из URL:", e);
+                    let errorMessage = "Ошибка отображения данных (декодирование). Возможно, они повреждены.\n\n";
                     if (e.name) errorMessage += `Тип: ${e.name}\n`;
                     if (e.message) errorMessage += `Сообщение: ${e.message}\n`;
                     contentDiv.textContent = errorMessage;
+                    textToDisplay = null; // Не пытаться рендерить поврежденные данные
                 }
             } else {
                 contentDiv.textContent = "Нет данных для отображения (параметр 'data' отсутствует).";
+                textToDisplay = null;
             }
+            domReady = true;
+            performLatexRender();
         });
     </script>
 </body>
