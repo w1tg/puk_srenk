@@ -9,7 +9,7 @@
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-    <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" integrity="sha384-hIoBPJpTUs74ddyc4bFZSM1TVlQDA60VBbJS0oA934VSz82sBx1X7kSx2ATBDIyd" crossorigin="anonymous"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="customKatexInit();"></script>
@@ -53,11 +53,14 @@
             padding: 1em;
             border-radius: 4px;
             overflow-x: auto;
+            white-space: pre-wrap; /* Для переноса строк внутри pre, если нужно */
+            word-wrap: break-word; /* Для переноса длинных строк без пробелов */
         }
         #content pre code {
             background-color: transparent;
             padding: 0;
             border-radius: 0;
+            white-space: pre; /* Сохраняем форматирование внутри code в pre */
         }
         #content blockquote {
             border-left: 3px solid #ccc;
@@ -83,8 +86,8 @@
             display: block;
             overflow-x: auto; 
             overflow-y: hidden;
-            padding: 0.5em 0; /* Можно уменьшить, если кажется большим */
-            margin: 0.5em 0;   /* Можно уменьшить */
+            padding: 0.5em 0;
+            margin: 0.5em 0;
         }
         .katex {
             font-size: 1.1em; 
@@ -128,12 +131,15 @@
         const contentDivGlobal = document.getElementById('content'); 
 
         function performLatexRender() {
-            console.log("[performLatexRender] Called. domReady:", domReady, "textToDisplay set:", textToDisplay !== null, "katexReady:", katexReady);
+            console.log("[performLatexRender] Called. domReady:", domReady, "textToDisplay set:", textToDisplay !== null, "katexReady:", katexReady, "marked loaded:", typeof marked === 'function');
 
             if (domReady && textToDisplay !== null) {
                 // Шаг 1: Обработка Markdown и вставка в DOM
                 if (typeof marked === 'function') {
                     try {
+                        // Важно: marked.parse() по умолчанию НЕ экранирует HTML. 
+                        // Если textToDisplay может содержать HTML от пользователя, нужна санация.
+                        // Для вывода от OpenAI это обычно безопасно.
                         const htmlContent = marked.parse(textToDisplay);
                         contentDivGlobal.innerHTML = htmlContent;
                         console.log("[performLatexRender] Markdown обработан, HTML установлен.");
@@ -144,7 +150,7 @@
                     }
                 } else {
                     contentDivGlobal.textContent = textToDisplay; // Фоллбэк, если marked.js не загружен
-                    console.log("[performLatexRender] marked.js не загружен, текст установлен как есть.");
+                    console.log("[performLatexRender] marked.js НЕ загружен или НЕ является функцией, текст установлен как есть.");
                 }
 
                 // Шаг 2: Обработка LaTeX, если KaTeX готов
@@ -157,8 +163,7 @@
                                     {left: "$$", right: "$$", display: true},
                                     {left: "\\[", right: "\\]", display: true},
                                     {left: "\\(", right: "\\)", display: false},
-                                    // Если OpenAI может использовать одиночные $, раскомментируйте:
-                                    // {left: "$", right: "$", display: false} 
+                                    // {left: "$", right: "$", display: false} // Раскомментируйте, если нужно $...$ для inline
                                 ],
                                 throwOnError: false,
                                 ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"]
@@ -168,7 +173,6 @@
                             console.error("[performLatexRender] Ошибка при рендеринге LaTeX:", e);
                         }
                     } else {
-                        // Эта ситуация не должна возникать, если customKatexInit корректно отработал
                         console.error("[performLatexRender] KaTeX готов (katexReady=true), но renderMathInElement не является функцией. Проверьте скрипт auto-render.js.");
                     }
                 } else {
@@ -182,7 +186,7 @@
         function customKatexInit() {
             console.log("[customKatexInit] KaTeX auto-render script загружен и выполнен onload.");
             katexReady = true;
-            performLatexRender(); // Повторный вызов для обработки LaTeX, если текст и DOM уже были готовы
+            performLatexRender(); 
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -244,7 +248,7 @@
             }
             
             domReady = true;
-            performLatexRender(); // Первичный вызов для обработки Markdown и, возможно, LaTeX
+            performLatexRender(); 
         });
     </script>
 </body>
