@@ -9,6 +9,8 @@
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
+    <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" integrity="sha384-hIoBPJpTUs74ddyc4bFZSM1TVlQDA60VBbJS0oA934VSz82sBx1X7kSx2ATBDIyd" crossorigin="anonymous"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="customKatexInit();"></script>
     
@@ -29,12 +31,60 @@
             font-size: 16px;
             line-height: 1.6;
         }
+        /* Стили для элементов, генерируемых Markdown (пример) */
+        #content h1, #content h2, #content h3, #content h4, #content h5, #content h6 {
+            margin-top: 1.2em;
+            margin-bottom: 0.6em;
+            font-weight: bold;
+        }
+        #content h1 { font-size: 2em; }
+        #content h2 { font-size: 1.75em; }
+        #content h3 { font-size: 1.5em; }
+        #content p { margin-bottom: 0.8em; }
+        #content ul, #content ol { margin-left: 20px; margin-bottom: 0.8em; }
+        #content code {
+            background-color: #f0f0f0;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        }
+        #content pre {
+            background-color: #f0f0f0;
+            padding: 1em;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        #content pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+        }
+        #content blockquote {
+            border-left: 3px solid #ccc;
+            padding-left: 1em;
+            margin-left: 0;
+            color: #555;
+        }
+        #content table {
+            border-collapse: collapse;
+            width: auto;
+            margin-bottom: 1em;
+        }
+        #content th, #content td {
+            border: 1px solid #ccc;
+            padding: 0.4em 0.8em;
+        }
+        #content th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+
         .katex-display { 
             display: block;
             overflow-x: auto; 
             overflow-y: hidden;
-            padding: 0.5em 0;
-            margin: 1em 0;
+            padding: 0.5em 0; /* Можно уменьшить, если кажется большим */
+            margin: 0.5em 0;   /* Можно уменьшить */
         }
         .katex {
             font-size: 1.1em; 
@@ -75,48 +125,64 @@
         let katexReady = false;
         let domReady = false;
         let textToDisplay = null;
-        const contentDivGlobal = document.getElementById('content'); // Get it once
+        const contentDivGlobal = document.getElementById('content'); 
 
         function performLatexRender() {
-            console.log("[performLatexRender] Called. katexReady:", katexReady, "domReady:", domReady, "textToDisplay is null?", textToDisplay === null);
-            if (textToDisplay !== null) {
-                console.log("[performLatexRender] textToDisplay content:", textToDisplay);
-            }
+            console.log("[performLatexRender] Called. domReady:", domReady, "textToDisplay set:", textToDisplay !== null, "katexReady:", katexReady);
 
-            if (katexReady && domReady && textToDisplay !== null) {
-                console.log("[performLatexRender] Conditions met. Setting contentDiv.textContent.");
-                contentDivGlobal.textContent = textToDisplay; 
-
-                if (typeof renderMathInElement === "function") {
-                    console.log("[performLatexRender] Calling renderMathInElement.");
+            if (domReady && textToDisplay !== null) {
+                // Шаг 1: Обработка Markdown и вставка в DOM
+                if (typeof marked === 'function') {
                     try {
-                        renderMathInElement(contentDivGlobal, {
-                            delimiters: [
-                                {left: "$$", right: "$$", display: true},
-                                {left: "\\[", right: "\\]", display: true},
-                                {left: "\\(", right: "\\)", display: false},
-                            ],
-                            throwOnError: false,
-                            ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"]
-                        });
-                        console.log("[performLatexRender] renderMathInElement finished.");
-                    } catch (katexError) {
-                        console.error("[performLatexRender] Error during renderMathInElement:", katexError);
-                        contentDivGlobal.textContent = "Ошибка при рендеринге формул KaTeX.\n\n" + textToDisplay;
+                        const htmlContent = marked.parse(textToDisplay);
+                        contentDivGlobal.innerHTML = htmlContent;
+                        console.log("[performLatexRender] Markdown обработан, HTML установлен.");
+                    } catch (e) {
+                        console.error("[performLatexRender] Ошибка при обработке Markdown:", e);
+                        contentDivGlobal.textContent = textToDisplay; // Фоллбэк на простой текст
+                        console.log("[performLatexRender] Markdown не обработан (ошибка), текст установлен как есть.");
                     }
                 } else {
-                    console.error("[performLatexRender] KaTeX: функция renderMathInElement не определена.");
-                    contentDivGlobal.textContent = "Ошибка: Библиотека для отображения формул (KaTeX) не смогла инициализироваться (renderMathInElement not found).\n\n" + textToDisplay;
+                    contentDivGlobal.textContent = textToDisplay; // Фоллбэк, если marked.js не загружен
+                    console.log("[performLatexRender] marked.js не загружен, текст установлен как есть.");
+                }
+
+                // Шаг 2: Обработка LaTeX, если KaTeX готов
+                if (katexReady) {
+                    if (typeof renderMathInElement === "function") {
+                        try {
+                            console.log("[performLatexRender] Попытка рендеринга LaTeX...");
+                            renderMathInElement(contentDivGlobal, {
+                                delimiters: [
+                                    {left: "$$", right: "$$", display: true},
+                                    {left: "\\[", right: "\\]", display: true},
+                                    {left: "\\(", right: "\\)", display: false},
+                                    // Если OpenAI может использовать одиночные $, раскомментируйте:
+                                    // {left: "$", right: "$", display: false} 
+                                ],
+                                throwOnError: false,
+                                ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"]
+                            });
+                            console.log("[performLatexRender] Рендеринг LaTeX завершен.");
+                        } catch (e) {
+                            console.error("[performLatexRender] Ошибка при рендеринге LaTeX:", e);
+                        }
+                    } else {
+                        // Эта ситуация не должна возникать, если customKatexInit корректно отработал
+                        console.error("[performLatexRender] KaTeX готов (katexReady=true), но renderMathInElement не является функцией. Проверьте скрипт auto-render.js.");
+                    }
+                } else {
+                    console.log("[performLatexRender] KaTeX не готов. LaTeX не будет обработан на этом шаге.");
                 }
             } else {
-                console.log("[performLatexRender] Conditions NOT met or textToDisplay is null.");
+                console.log("[performLatexRender] Базовые условия (DOM готов и текст получен) не выполнены. Отображение не будет произведено.");
             }
         }
 
         function customKatexInit() {
-            console.log("[customKatexInit] KaTeX auto-render script загружен.");
+            console.log("[customKatexInit] KaTeX auto-render script загружен и выполнен onload.");
             katexReady = true;
-            performLatexRender();
+            performLatexRender(); // Повторный вызов для обработки LaTeX, если текст и DOM уже были готовы
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -139,7 +205,7 @@
             });
 
             if (tg.themeParams) {
-                console.log("[DOMContentLoaded] Applying Telegram theme params.");
+                console.log("[DOMContentLoaded] Применение темы Telegram.");
                 document.body.style.backgroundColor = tg.themeParams.bg_color || '#ffffff';
                 document.body.style.color = tg.themeParams.text_color || '#000000';
                 closeButton.style.backgroundColor = tg.themeParams.button_color || '#007bff';
@@ -151,35 +217,34 @@
 
             const urlParams = new URLSearchParams(window.location.search);
             const encodedData = urlParams.get('data');
-            console.log("[DOMContentLoaded] Encoded data from URL:", encodedData);
+            console.log("[DOMContentLoaded] Получены encodedData из URL:", encodedData ? encodedData.substring(0,100) + "..." : "null");
 
             if (encodedData) {
                 try {
-                    console.log("[DOMContentLoaded] Attempting to decode data:", encodedData);
-                    const base64Decoded = atob(decodeURIComponent(encodedData)); 
-                    console.log("[DOMContentLoaded] Base64 decoded (raw):", base64Decoded.substring(0,100) + "..."); // Log first 100 chars
-
+                    console.log("[DOMContentLoaded] Попытка декодирования данных...");
+                    const base64Decoded = atob(decodeURIComponent(encodedData));                     
                     const uint8Array = new Uint8Array(base64Decoded.length);
                     for (let i = 0; i < base64Decoded.length; i++) {
                         uint8Array[i] = base64Decoded.charCodeAt(i);
                     }
                     textToDisplay = new TextDecoder().decode(uint8Array);
-                    console.log("[DOMContentLoaded] Successfully decoded textToDisplay:", textToDisplay.substring(0,100) + "...");
+                    console.log("[DOMContentLoaded] Данные успешно декодированы. textToDisplay (начало):", textToDisplay ? textToDisplay.substring(0,200) + "..." : "null");
                 } catch (e) {
-                    console.error("[DOMContentLoaded] WebApp: Ошибка декодирования данных из URL:", e);
-                    let errorMessage = "Ошибка отображения данных (декодирование). Возможно, они повреждены.\n\n";
+                    console.error("[DOMContentLoaded] Ошибка декодирования данных из URL:", e);
+                    let errorMessage = "Ошибка отображения данных (не удалось декодировать).\n\n";
                     if (e.name) errorMessage += `Тип: ${e.name}\n`;
                     if (e.message) errorMessage += `Сообщение: ${e.message}\n`;
-                    contentDivGlobal.textContent = errorMessage; // Display error here
+                    contentDivGlobal.textContent = errorMessage; 
                     textToDisplay = null; 
                 }
             } else {
-                console.log("[DOMContentLoaded] No 'data' parameter in URL.");
+                console.log("[DOMContentLoaded] Параметр 'data' в URL отсутствует.");
                 contentDivGlobal.textContent = "Нет данных для отображения (параметр 'data' отсутствует).";
                 textToDisplay = null;
             }
+            
             domReady = true;
-            performLatexRender();
+            performLatexRender(); // Первичный вызов для обработки Markdown и, возможно, LaTeX
         });
     </script>
 </body>
