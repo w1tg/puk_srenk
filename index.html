@@ -186,7 +186,8 @@
         function customKatexInit() {
             console.log("[customKatexInit] KaTeX auto-render script загружен и выполнен onload.");
             katexReady = true;
-            performLatexRender(); 
+            // performLatexRender(); - скрипт срабатывал до подгрузки библиотеки
+            setTimeout(performLatexRender, 0);
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -248,7 +249,8 @@
             }
             
             domReady = true;
-            performLatexRender(); 
+            // performLatexRender(); - скрипт срабатывал до подгрузки библиотеки
+            setTimeout(performLatexRender, 0); 
         });
     </script>
 </body>
