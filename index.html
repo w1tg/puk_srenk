@@ -131,26 +131,34 @@
         const contentDivGlobal = document.getElementById('content'); 
 
         function performLatexRender() {
-            console.log("[performLatexRender] Called. domReady:", domReady, "textToDisplay set:", textToDisplay !== null, "katexReady:", katexReady, "marked loaded:", typeof marked === 'function');
+            // Добавим более детальный лог для window.marked
+            console.log("[performLatexRender] Called. domReady:", domReady, "textToDisplay set:", textToDisplay !== null, "katexReady:", katexReady, "typeof window.marked:", typeof window.marked);
+            if (window.marked) {
+                console.log("[performLatexRender] window.marked.parse is function?", typeof window.marked.parse === 'function');
+            }
+
 
             if (domReady && textToDisplay !== null) {
                 // Шаг 1: Обработка Markdown и вставка в DOM
-                if (typeof marked === 'function') {
+                // ИЗМЕНЕННОЕ УСЛОВИЕ: Проверяем, что window.marked существует и window.marked.parse является функцией
+                if (window.marked && typeof window.marked.parse === 'function') {
                     try {
-                        // Важно: marked.parse() по умолчанию НЕ экранирует HTML. 
-                        // Если textToDisplay может содержать HTML от пользователя, нужна санация.
-                        // Для вывода от OpenAI это обычно безопасно.
-                        const htmlContent = marked.parse(textToDisplay);
+                        // Используем window.marked.parse()
+                        const htmlContent = window.marked.parse(textToDisplay);
                         contentDivGlobal.innerHTML = htmlContent;
-                        console.log("[performLatexRender] Markdown обработан, HTML установлен.");
+                        console.log("[performLatexRender] Markdown обработан (через window.marked.parse), HTML установлен.");
                     } catch (e) {
-                        console.error("[performLatexRender] Ошибка при обработке Markdown:", e);
+                        console.error("[performLatexRender] Ошибка при обработке Markdown (через window.marked.parse):", e);
                         contentDivGlobal.textContent = textToDisplay; // Фоллбэк на простой текст
                         console.log("[performLatexRender] Markdown не обработан (ошибка), текст установлен как есть.");
                     }
                 } else {
-                    contentDivGlobal.textContent = textToDisplay; // Фоллбэк, если marked.js не загружен
-                    console.log("[performLatexRender] marked.js НЕ загружен или НЕ является функцией, текст установлен как есть.");
+                    contentDivGlobal.textContent = textToDisplay; // Фоллбэк, если marked.js не загружен корректно
+                    let markedStatusDetail = "не определен или не имеет метода .parse().";
+                    if (typeof window.marked !== 'undefined') {
+                        markedStatusDetail = `является ${typeof window.marked}, но метод .parse() ${typeof window.marked?.parse === 'function' ? 'присутствует' : 'отсутствует или не функция'}.`;
+                    }
+                    console.log(`[performLatexRender] window.marked ${markedStatusDetail} Текст установлен как есть.`);
                 }
 
                 // Шаг 2: Обработка LaTeX, если KaTeX готов
@@ -163,7 +171,6 @@
                                     {left: "$$", right: "$$", display: true},
                                     {left: "\\[", right: "\\]", display: true},
                                     {left: "\\(", right: "\\)", display: false},
-                                    // {left: "$", right: "$", display: false} // Раскомментируйте, если нужно $...$ для inline
                                 ],
                                 throwOnError: false,
                                 ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"]
@@ -173,7 +180,7 @@
                             console.error("[performLatexRender] Ошибка при рендеринге LaTeX:", e);
                         }
                     } else {
-                        console.error("[performLatexRender] KaTeX готов (katexReady=true), но renderMathInElement не является функцией. Проверьте скрипт auto-render.js.");
+                        console.error("[performLatexRender] KaTeX готов (katexReady=true), но renderMathInElement не является функцией.");
                     }
                 } else {
                     console.log("[performLatexRender] KaTeX не готов. LaTeX не будет обработан на этом шаге.");
@@ -182,6 +189,7 @@
                 console.log("[performLatexRender] Базовые условия (DOM готов и текст получен) не выполнены. Отображение не будет произведено.");
             }
         }
+
 
         function customKatexInit() {
             console.log("[customKatexInit] KaTeX auto-render script загружен и выполнен onload.");
