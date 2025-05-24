@@ -3,16 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=1.0">
-    <title>Просмотр LaTeX (ZeroPayGPT)</title>
+    <title>Просмотр Markdown + LaTeX (ZeroPayGPT)</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww" crossorigin="anonymous">
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/14.1.0/markdown-it.min.js" integrity="sha512-MCQ37K4Nn//FGUYoZXxFkG9E6BKQ0PzQy8nSYKqGgyVTyLCom168jsqfD8cGgBLGBFG+R8O5tW0VqHxFmR7hCw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" integrity="sha384-hIoBPJpTUs74ddyc4bFZSM1TVlQDA60VBbJS0oA934VSz82sBx1X7kSx2ATBDIyd" crossorigin="anonymous"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="customKatexInit();"></script>
     
     <style>
         body {
@@ -43,30 +41,31 @@
         #content p { margin-bottom: 0.8em; }
         #content ul, #content ol { margin-left: 20px; margin-bottom: 0.8em; }
         #content code {
-            background-color: #f0f0f0;
+            background-color: var(--tg-theme-hint-color, #f0f0f0); /* Используем цвет подсказок для фона кода */
             padding: 0.2em 0.4em;
             border-radius: 3px;
             font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            color: var(--tg-theme-text-color, #000000); /* Убедимся, что текст кода читаем */
         }
         #content pre {
-            background-color: #f0f0f0;
+            background-color: var(--tg-theme-hint-color, #f0f0f0); /* Используем цвет подсказок для фона pre */
             padding: 1em;
             border-radius: 4px;
             overflow-x: auto;
-            white-space: pre-wrap; /* Для переноса строк внутри pre, если нужно */
-            word-wrap: break-word; /* Для переноса длинных строк без пробелов */
+            white-space: pre-wrap; 
+            word-wrap: break-word; 
         }
         #content pre code {
             background-color: transparent;
             padding: 0;
             border-radius: 0;
-            white-space: pre; /* Сохраняем форматирование внутри code в pre */
+            white-space: pre; 
         }
         #content blockquote {
-            border-left: 3px solid #ccc;
+            border-left: 3px solid var(--tg-theme-hint-color, #ccc);
             padding-left: 1em;
             margin-left: 0;
-            color: #555;
+            color: var(--tg-theme-subtitle-text-color, #555); /* Цвет для цитат */
         }
         #content table {
             border-collapse: collapse;
@@ -74,14 +73,17 @@
             margin-bottom: 1em;
         }
         #content th, #content td {
-            border: 1px solid #ccc;
+            border: 1px solid var(--tg-theme-hint-color, #ccc);
             padding: 0.4em 0.8em;
         }
         #content th {
-            background-color: #f0f0f0;
+            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
             font-weight: bold;
         }
 
+        .latex-placeholder { /* Стиль для плейсхолдеров на время загрузки, если нужно */
+            /* Можно добавить временный стиль, например, min-height или background */
+        }
         .katex-display { 
             display: block;
             overflow-x: auto; 
@@ -121,85 +123,132 @@
 <body>
     <div id="content">Загрузка данных... Пожалуйста, подождите.</div>
 
-    <div id="closeButtonContainer" style="display: none;"> <button id="closeButton">Закрыть</button>
+    <div id="closeButtonContainer" style="display: none;">
+        <button id="closeButton">Закрыть</button>
     </div>
 
     <script>
-        let katexReady = false;
         let domReady = false;
         let textToDisplay = null;
         const contentDivGlobal = document.getElementById('content'); 
 
-       function performLatexRender() {
-            console.log("[performLatexRender] Called. domReady:", domReady, "textToDisplay set:", textToDisplay !== null, "katexReady:", katexReady, "typeof window.marked:", typeof window.marked);
-            if (window.marked) {
-                console.log("[performLatexRender] window.marked.parse is function?", typeof window.marked.parse === 'function');
+        function displayFormattedContent() {
+            console.log("[displayFormattedContent] Called. domReady:", domReady, "textToDisplay set:", textToDisplay !== null);
+
+            if (!domReady || textToDisplay === null) {
+                console.log("[displayFormattedContent] Базовые условия (DOM или текст) не выполнены.");
+                if (domReady && textToDisplay === null && !contentDivGlobal.textContent.startsWith("Нет данных") && !contentDivGlobal.textContent.startsWith("Ошибка")) {
+                    // Если DOM готов, но текст не пришел (и нет сообщения об ошибке данных)
+                    contentDivGlobal.textContent = "Ожидание данных...";
+                }
+                return;
             }
 
-            if (domReady && textToDisplay !== null) {
-                if (window.marked && typeof window.marked.parse === 'function') {
+            if (typeof window.markdownit === 'undefined') {
+                console.error("[displayFormattedContent] markdown-it не загружен!");
+                contentDivGlobal.textContent = "Ошибка: Библиотека Markdown не загружена.";
+                return;
+            }
+            if (typeof window.katex === 'undefined') {
+                console.error("[displayFormattedContent] KaTeX не загружен!");
+                contentDivGlobal.textContent = "Ошибка: Библиотека LaTeX не загружена.";
+                return;
+            }
+            
+            console.log("[displayFormattedContent] Начало обработки содержимого.");
+            const latexParts = [];
+            let placeholderCounter = 0;
+            let processedText = textToDisplay;
+
+            // Шаг 1: Изоляция LaTeX
+            // Важно: Порядок важен, сначала более специфичные (\[ \]) или уникальные, затем общие ($$).
+            // Блочные LaTeX: \[ ... \]
+            processedText = processedText.replace(/\\\[([\s\S]*?)\\\]/g, (match, latex) => {
+                const id = placeholderCounter++;
+                latexParts[id] = { content: latex.trim(), displayMode: true };
+                return `<div class="latex-placeholder" data-latex-id="${id}"></div>`;
+            });
+            // Блочные LaTeX: $$...$$
+            processedText = processedText.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
+                const id = placeholderCounter++;
+                latexParts[id] = { content: latex.trim(), displayMode: true };
+                return `<div class="latex-placeholder" data-latex-id="${id}"></div>`;
+            });
+            // Встроенный LaTeX: \( ... \)
+            processedText = processedText.replace(/\\\(([\s\S]*?)\\\)/g, (match, latex) => {
+                const id = placeholderCounter++;
+                latexParts[id] = { content: latex.trim(), displayMode: false };
+                return `<span class="latex-placeholder" data-latex-id="${id}"></span>`;
+            });
+            // Встроенный LaTeX: $ ... $ (будьте осторожны, может конфликтовать с символами валют)
+            // Этот regex пытается быть чуть умнее, не захватывая $ внутри слов или чисел.
+            // Он ищет $ окруженный пробелами или пунктуацией, или в начале/конце строки,
+            // и требует, чтобы содержимое не было пустым и не содержало только пробелы.
+            // Но всё равно может давать ложные срабатывания. `\(...\)` и `\[...\]` надежнее.
+            // processedText = processedText.replace(/(?<!\w)\$((?:[^$\r\n]|(?<=\\)\$)+)\$(?!\w)/g, (match, latex) => {
+            //     if (latex.trim() === "") return match; // Не заменять пустые $ $
+            //     const id = placeholderCounter++;
+            //     latexParts[id] = { content: latex.trim().replace(/\\\$/g, '$'), displayMode: false };
+            //     return `<span class="latex-placeholder" data-latex-id="${id}"></span>`;
+            // });
+
+
+            console.log("[displayFormattedContent] LaTeX изолирован. Количество частей LaTeX:", latexParts.length);
+            console.log("[displayFormattedContent] Текст после изоляции LaTeX (начало):", processedText.substring(0, 200) + "...");
+
+            // Шаг 2: Настройка и парсинг Markdown с помощью markdown-it
+            const md = new window.markdownit({
+                html: true,        // <<< ОЧЕНЬ ВАЖНО для сохранения плейсхолдеров LaTeX
+                linkify: true,     // Автоматически определять ссылки
+                typographer: true, // Включить "умные" кавычки, тире и т.д.
+                // Настройка под MarkdownV2 (Telegram):
+                // Telegram: *жирный*, _курсив_, __подчеркнутый__, ~зачеркнутый~
+                // markdown-it по умолчанию: *курсив* / _курсив_, **жирный** / __жирный__
+                // Для точного соответствия может потребоваться кастомизация правил или плагины:
+                // - Для __подчеркнутого__: можно использовать markdown-it-underline (если подключен)
+                //   md.use(window.markdownitUnderline);
+                // - Для *жирный* и _курсив_ как в Telegram, может потребоваться более глубокая настройка
+                //   токенизатора markdown-it. Как вариант, можно использовать стандартные правила
+                //   markdown-it (**жирный**, *курсив*) или убедиться, что входной текст им соответствует.
+            });
+
+            let htmlRenderedByMarkdown;
+            try {
+                htmlRenderedByMarkdown = md.render(processedText);
+                contentDivGlobal.innerHTML = htmlRenderedByMarkdown;
+                console.log("[displayFormattedContent] Markdown обработан и HTML установлен.");
+            } catch (e) {
+                console.error("[displayFormattedContent] Ошибка при обработке Markdown:", e);
+                contentDivGlobal.textContent = "Ошибка обработки Markdown. Пожалуйста, проверьте разметку.";
+                return; // Прекращаем выполнение если Markdown сломался
+            }
+            
+            // Отладочный вывод HTML после markdown-it, но до KaTeX
+            // console.log("[DEBUG] HTML после markdown-it:\n", contentDivGlobal.innerHTML);
+
+            // Шаг 3: Рендеринг LaTeX в плейсхолдеры
+            contentDivGlobal.querySelectorAll('.latex-placeholder').forEach(el => {
+                const id = parseInt(el.dataset.latexId);
+                const latexData = latexParts[id];
+                if (latexData) {
                     try {
-                        const htmlContent = window.marked.parse(textToDisplay);
-                        contentDivGlobal.innerHTML = htmlContent;
-                        console.log("[performLatexRender] Markdown обработан, HTML установлен.");
-                        
-                        // !!!!! ОТЛАДОЧНЫЙ ВЫВОД !!!!!
-                        // Выведем в консоль HTML, который получился ПОСЛЕ marked.parse,
-                        // но ДО вызова renderMathInElement.
-                        console.log("[DEBUG] Содержимое contentDivGlobal.innerHTML ПОСЛЕ marked.parse():");
-                        console.log(contentDivGlobal.innerHTML);
-                        // !!!!! КОНЕЦ ОТЛАДОЧНОГО ВЫВОДА !!!!!
-
+                        window.katex.render(latexData.content, el, {
+                            throwOnError: false, // Установите true для отладки ошибок KaTeX
+                            displayMode: latexData.displayMode,
+                            // macros: {"\\RR": "\\mathbb{R}"} // Пример пользовательских макросов
+                        });
                     } catch (e) {
-                        console.error("[performLatexRender] Ошибка при обработке Markdown:", e);
-                        contentDivGlobal.textContent = textToDisplay;
-                        console.log("[performLatexRender] Markdown не обработан (ошибка), текст установлен как есть.");
+                        console.error(`[displayFormattedContent] Ошибка рендеринга KaTeX для ID ${id} (содержимое: "${latexData.content.substring(0,30)}...") :`, e);
+                        el.textContent = `[Ошибка LaTeX: ${latexData.content.substring(0,20)}...]`;
+                        // Для лучшего отображения ошибок KaTeX, убедитесь, что CSS KaTeX подключен
+                        // и содержит стили для .katex-error или .katex-parse-error
                     }
                 } else {
-                    contentDivGlobal.textContent = textToDisplay;
-                    let markedStatusDetail = "не определен или не имеет метода .parse().";
-                    if (typeof window.marked !== 'undefined') {
-                        markedStatusDetail = `является ${typeof window.marked}, но метод .parse() ${typeof window.marked?.parse === 'function' ? 'присутствует' : 'отсутствует или не функция'}.`;
-                    }
-                    console.log(`[performLatexRender] window.marked ${markedStatusDetail} Текст установлен как есть.`);
+                     console.warn(`[displayFormattedContent] Не найдены данные LaTeX для плейсхолдера с ID ${id}`);
+                     el.textContent = "[Не найден LaTeX для ID "+id+"]";
                 }
-
-                if (katexReady) {
-                    if (typeof renderMathInElement === "function") {
-                        try {
-                            console.log("[performLatexRender] Попытка рендеринга LaTeX...");
-                            renderMathInElement(contentDivGlobal, {
-                                delimiters: [
-                                    {left: "$$", right: "$$", display: true},
-                                    {left: "\\[", right: "\\]", display: true},
-                                    {left: "\\(", right: "\\)", display: false},
-                                ],
-                                // throwOnError: false, // Оставляем false пока, чтобы не прерывать выполнение
-                                // Для более детальной отладки ошибок KaTeX можно временно поставить true:
-                                throwOnError: true, // <--- ВРЕМЕННО УСТАНОВИТЕ TRUE для отладки KaTeX
-                                ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"]
-                            });
-                            console.log("[performLatexRender] Рендеринг LaTeX завершен.");
-                        } catch (e) {
-                            // Если throwOnError: true, ошибки KaTeX попадут сюда
-                            console.error("[performLatexRender] Ошибка при рендеринге LaTeX (возможно, из-за throwOnError:true):", e);
-                        }
-                    } else {
-                        console.error("[performLatexRender] KaTeX готов (katexReady=true), но renderMathInElement не является функцией.");
-                    }
-                } else {
-                    console.log("[performLatexRender] KaTeX не готов. LaTeX не будет обработан на этом шаге.");
-                }
-            } else {
-                console.log("[performLatexRender] Базовые условия (DOM готов и текст получен) не выполнены. Отображение не будет произведено.");
-            }
-        }
-
-        function customKatexInit() {
-            console.log("[customKatexInit] KaTeX auto-render script загружен и выполнен onload.");
-            katexReady = true;
-            // performLatexRender(); - скрипт срабатывал до подгрузки библиотеки
-            setTimeout(performLatexRender, 0);
+            });
+            console.log("[displayFormattedContent] Рендеринг LaTeX завершен.");
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -230,6 +279,36 @@
                 if (tg.themeParams.secondary_bg_color) {
                     closeButtonContainer.style.backgroundColor = tg.themeParams.secondary_bg_color;
                 }
+                 // Обновим стили для кода и pre на основе темы
+                const hintColor = tg.themeParams.hint_color || '#f0f0f0';
+                const textColor = tg.themeParams.text_color || '#000000';
+                const secondaryBgColor = tg.themeParams.secondary_bg_color || '#f0f0f0';
+                const subtitleTextColor = tg.themeParams.subtitle_text_color || '#555';
+
+
+                const styleSheet = document.styleSheets[0]; // Предполагаем, что наши стили в первом <style> теге или CSS файле
+                try {
+                    // Этот блок может быть сложным, если стили разбросаны или их много.
+                    // Проще всего было бы определить CSS переменные и менять их.
+                    // Но для прямого изменения:
+                    Array.from(styleSheet.cssRules).forEach(rule => {
+                        if (rule.selectorText === '#content code') {
+                            rule.style.backgroundColor = hintColor;
+                            rule.style.color = textColor;
+                        } else if (rule.selectorText === '#content pre') {
+                            rule.style.backgroundColor = hintColor;
+                        } else if (rule.selectorText === '#content blockquote') {
+                           rule.style.borderLeftColor = hintColor;
+                           rule.style.color = subtitleTextColor;
+                        } else if (rule.selectorText === '#content th') {
+                           rule.style.backgroundColor = secondaryBgColor;
+                        } else if (rule.selectorText === '#content th, #content td') {
+                           rule.style.borderColor = hintColor;
+                        }
+                    });
+                } catch (e) {
+                    console.warn("Не удалось динамически обновить все стили под тему Telegram: ", e);
+                }
             }
 
             const urlParams = new URLSearchParams(window.location.search);
@@ -239,12 +318,13 @@
             if (encodedData) {
                 try {
                     console.log("[DOMContentLoaded] Попытка декодирования данных...");
-                    const base64Decoded = atob(decodeURIComponent(encodedData));                     
+                    // Порядок: URL-декодирование компонента, затем Base64-декодирование, затем TextDecoder
+                    const base64Decoded = atob(decodeURIComponent(encodedData));                       
                     const uint8Array = new Uint8Array(base64Decoded.length);
                     for (let i = 0; i < base64Decoded.length; i++) {
                         uint8Array[i] = base64Decoded.charCodeAt(i);
                     }
-                    textToDisplay = new TextDecoder().decode(uint8Array);
+                    textToDisplay = new TextDecoder().decode(uint8Array); // UTF-8 по умолчанию
                     console.log("[DOMContentLoaded] Данные успешно декодированы. textToDisplay (начало):", textToDisplay ? textToDisplay.substring(0,200) + "..." : "null");
                 } catch (e) {
                     console.error("[DOMContentLoaded] Ошибка декодирования данных из URL:", e);
@@ -261,8 +341,10 @@
             }
             
             domReady = true;
-            // performLatexRender(); - скрипт срабатывал до подгрузки библиотеки
-            setTimeout(performLatexRender, 0); 
+            // Вызываем основную функцию рендеринга.
+            // setTimeout гарантирует, что это произойдет после текущего стека вызовов,
+            // давая defer-скриптам (KaTeX) шанс полностью загрузиться.
+            setTimeout(displayFormattedContent, 0); 
         });
     </script>
 </body>
