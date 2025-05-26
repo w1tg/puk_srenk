@@ -2,349 +2,539 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=1.0">
-    <title>Просмотр Markdown + LaTeX (ZeroPayGPT)</title>
-
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww" crossorigin="anonymous">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZeroPayGPT - LaTeX Viewer</title>
+    
+    <!-- MathJax для рендеринга LaTeX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js"></script>
+    
+    <!-- Highlight.js для подсветки кода -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/14.1.0/markdown-it.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" integrity="sha384-hIoBPJpTUs74ddyc4bFZSM1TVlQDA60VBbJS0oA934VSz82sBx1X7kSx2ATBDIyd" crossorigin="anonymous"></script>
-    
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            padding: 15px;
-            word-wrap: break-word;
-            background-color: var(--tg-theme-bg-color, #ffffff);
-            color: var(--tg-theme-text-color, #000000);
+        * {
             margin: 0;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            padding-bottom: 80px; /* Отступ снизу для кнопки */
-        }
-        #content {
-            white-space: pre-wrap; 
-            font-size: 16px;
-            line-height: 1.6;
-        }
-        /* Стили для элементов, генерируемых Markdown (пример) */
-        #content h1, #content h2, #content h3, #content h4, #content h5, #content h6 {
-            margin-top: 1.2em;
-            margin-bottom: 0.6em;
-            font-weight: bold;
-        }
-        #content h1 { font-size: 2em; }
-        #content h2 { font-size: 1.75em; }
-        #content h3 { font-size: 1.5em; }
-        #content p { margin-bottom: 0.8em; }
-        #content ul, #content ol { margin-left: 20px; margin-bottom: 0.8em; }
-        #content code {
-            background-color: var(--tg-theme-hint-color, #f0f0f0); /* Используем цвет подсказок для фона кода */
-            padding: 0.2em 0.4em;
-            border-radius: 3px;
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-            color: var(--tg-theme-text-color, #000000); /* Убедимся, что текст кода читаем */
-        }
-        #content pre {
-            background-color: var(--tg-theme-hint-color, #f0f0f0); /* Используем цвет подсказок для фона pre */
-            padding: 1em;
-            border-radius: 4px;
-            overflow-x: auto;
-            white-space: pre-wrap; 
-            word-wrap: break-word; 
-        }
-        #content pre code {
-            background-color: transparent;
             padding: 0;
-            border-radius: 0;
-            white-space: pre; 
+            box-sizing: border-box;
         }
-        #content blockquote {
-            border-left: 3px solid var(--tg-theme-hint-color, #ccc);
-            padding-left: 1em;
-            margin-left: 0;
-            color: var(--tg-theme-subtitle-text-color, #555); /* Цвет для цитат */
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--tg-theme-text-color, #000);
+            background-color: var(--tg-theme-bg-color, #fff);
+            padding: 16px;
+            min-height: 100vh;
         }
-        #content table {
-            border-collapse: collapse;
-            width: auto;
-            margin-bottom: 1em;
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
         }
-        #content th, #content td {
-            border: 1px solid var(--tg-theme-hint-color, #ccc);
-            padding: 0.4em 0.8em;
+        
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--tg-theme-secondary-bg-color, #f0f0f0);
         }
-        #content th {
-            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
-            font-weight: bold;
+        
+        .logo {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color, #000);
         }
-
-        .latex-placeholder { /* Стиль для плейсхолдеров на время загрузки, если нужно */
-            /* Можно добавить временный стиль, например, min-height или background */
+        
+        .status {
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            background: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, #fff);
         }
-        .katex-display { 
-            display: block;
-            overflow-x: auto; 
-            overflow-y: hidden;
-            padding: 0.5em 0;
-            margin: 0.5em 0;
+        
+        .content {
+            animation: fadeIn 0.3s ease-in;
         }
-        .katex {
-            font-size: 1.1em; 
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        #closeButtonContainer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            padding: 10px 0;
-            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
-            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-            text-align: center;
-            z-index: 1000;
+        
+        /* Стили для математики */
+        .math-inline {
+            color: var(--tg-theme-link-color, #3390ec);
+            padding: 0 4px;
         }
-        #closeButton {
-            padding: 10px 25px;
-            background-color: var(--tg-theme-button-color, #007bff);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
+        
+        .math-block {
+            margin: 16px 0;
+            padding: 16px;
+            background: var(--tg-theme-secondary-bg-color, #f7f7f7);
             border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
+            overflow-x: auto;
         }
-        body.platform-unknown #closeButtonContainer {
-            display: none;
+        
+        /* Стили для кода */
+        pre {
+            margin: 16px 0;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        
+        code {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        /* Inline код */
+        p code, li code {
+            background: var(--tg-theme-secondary-bg-color, #f7f7f7);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        /* Стили для заголовков */
+        h1, h2, h3, h4, h5, h6 {
+            margin: 20px 0 12px;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+        
+        h1 { font-size: 24px; }
+        h2 { font-size: 20px; }
+        h3 { font-size: 18px; }
+        h4 { font-size: 16px; }
+        
+        /* Стили для списков */
+        ul, ol {
+            margin: 12px 0;
+            padding-left: 24px;
+        }
+        
+        li {
+            margin: 4px 0;
+        }
+        
+        /* Стили для ссылок */
+        a {
+            color: var(--tg-theme-link-color, #3390ec);
+            text-decoration: none;
+        }
+        
+        a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Стили для цитат */
+        blockquote {
+            margin: 16px 0;
+            padding: 12px 16px;
+            border-left: 4px solid var(--tg-theme-hint-color, #999);
+            background: var(--tg-theme-secondary-bg-color, #f7f7f7);
+            border-radius: 4px;
+        }
+        
+        /* Горизонтальная линия */
+        hr {
+            margin: 20px 0;
+            border: none;
+            border-top: 1px solid var(--tg-theme-secondary-bg-color, #f0f0f0);
+        }
+        
+        /* Таблицы */
+        table {
+            width: 100%;
+            margin: 16px 0;
+            border-collapse: collapse;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border: 1px solid var(--tg-theme-secondary-bg-color, #f0f0f0);
+        }
+        
+        th {
+            background: var(--tg-theme-secondary-bg-color, #f7f7f7);
+            font-weight: 600;
+        }
+        
+        /* Кнопка копирования */
+        .copy-button {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 8px;
+            background: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, #fff);
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        pre:hover .copy-button {
+            opacity: 1;
+        }
+        
+        .copy-button:active {
+            transform: scale(0.95);
+        }
+        
+        /* Сообщения об ошибках */
+        .error {
+            padding: 16px;
+            background: #fee;
+            color: #c33;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #fcc;
+        }
+        
+        /* Загрузка */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--tg-theme-hint-color, #999);
+        }
+        
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-left: 10px;
+            border: 2px solid var(--tg-theme-hint-color, #999);
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 600px) {
+            body {
+                padding: 12px;
+            }
+            
+            h1 { font-size: 20px; }
+            h2 { font-size: 18px; }
+            h3 { font-size: 16px; }
+            
+            pre {
+                font-size: 12px;
+            }
         }
     </style>
 </head>
 <body>
-    <div id="content">Загрузка данных... Пожалуйста, подождите.</div>
-
-    <div id="closeButtonContainer" style="display: none;">
-        <button id="closeButton">Закрыть</button>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🤖 ZeroPayGPT</div>
+            <div class="status">LaTeX Viewer</div>
+        </div>
+        
+        <div id="content" class="content">
+            <div class="loading">Загрузка контента</div>
+        </div>
     </div>
-
+    
     <script>
-        let domReady = false;
-        let textToDisplay = null;
-        const contentDivGlobal = document.getElementById('content'); 
-
-        function displayFormattedContent() {
-            console.log("[displayFormattedContent] Called. domReady:", domReady, "textToDisplay set:", textToDisplay !== null);
-
-            if (!domReady || textToDisplay === null) {
-                console.log("[displayFormattedContent] Базовые условия (DOM или текст) не выполнены.");
-                if (domReady && textToDisplay === null && !contentDivGlobal.textContent.startsWith("Нет данных") && !contentDivGlobal.textContent.startsWith("Ошибка")) {
-                    // Если DOM готов, но текст не пришел (и нет сообщения об ошибке данных)
-                    contentDivGlobal.textContent = "Ожидание данных...";
-                }
-                return;
-            }
-
-            if (typeof window.markdownit === 'undefined') {
-                console.error("[displayFormattedContent] markdown-it не загружен!");
-                contentDivGlobal.textContent = "Ошибка: Библиотека Markdown не загружена.";
-                return;
-            }
-            if (typeof window.katex === 'undefined') {
-                console.error("[displayFormattedContent] KaTeX не загружен!");
-                contentDivGlobal.textContent = "Ошибка: Библиотека LaTeX не загружена.";
-                return;
-            }
-            
-            console.log("[displayFormattedContent] Начало обработки содержимого.");
-            const latexParts = [];
-            let placeholderCounter = 0;
-            let processedText = textToDisplay;
-
-            // Шаг 1: Изоляция LaTeX
-            // Важно: Порядок важен, сначала более специфичные (\[ \]) или уникальные, затем общие ($$).
-            // Блочные LaTeX: \[ ... \]
-            processedText = processedText.replace(/\\\[([\s\S]*?)\\\]/g, (match, latex) => {
-                const id = placeholderCounter++;
-                latexParts[id] = { content: latex.trim(), displayMode: true };
-                return `<div class="latex-placeholder" data-latex-id="${id}"></div>`;
-            });
-            // Блочные LaTeX: $$...$$
-            processedText = processedText.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
-                const id = placeholderCounter++;
-                latexParts[id] = { content: latex.trim(), displayMode: true };
-                return `<div class="latex-placeholder" data-latex-id="${id}"></div>`;
-            });
-            // Встроенный LaTeX: \( ... \)
-            processedText = processedText.replace(/\\\(([\s\S]*?)\\\)/g, (match, latex) => {
-                const id = placeholderCounter++;
-                latexParts[id] = { content: latex.trim(), displayMode: false };
-                return `<span class="latex-placeholder" data-latex-id="${id}"></span>`;
-            });
-            // Встроенный LaTeX: $ ... $ (будьте осторожны, может конфликтовать с символами валют)
-            // Этот regex пытается быть чуть умнее, не захватывая $ внутри слов или чисел.
-            // Он ищет $ окруженный пробелами или пунктуацией, или в начале/конце строки,
-            // и требует, чтобы содержимое не было пустым и не содержало только пробелы.
-            // Но всё равно может давать ложные срабатывания. `\(...\)` и `\[...\]` надежнее.
-            // processedText = processedText.replace(/(?<!\w)\$((?:[^$\r\n]|(?<=\\)\$)+)\$(?!\w)/g, (match, latex) => {
-            //     if (latex.trim() === "") return match; // Не заменять пустые $ $
-            //     const id = placeholderCounter++;
-            //     latexParts[id] = { content: latex.trim().replace(/\\\$/g, '$'), displayMode: false };
-            //     return `<span class="latex-placeholder" data-latex-id="${id}"></span>`;
-            // });
-
-
-            console.log("[displayFormattedContent] LaTeX изолирован. Количество частей LaTeX:", latexParts.length);
-            console.log("[displayFormattedContent] Текст после изоляции LaTeX (начало):", processedText.substring(0, 200) + "...");
-
-            // Шаг 2: Настройка и парсинг Markdown с помощью markdown-it
-            const md = new window.markdownit({
-                html: true,        // <<< ОЧЕНЬ ВАЖНО для сохранения плейсхолдеров LaTeX
-                linkify: true,     // Автоматически определять ссылки
-                typographer: true, // Включить "умные" кавычки, тире и т.д.
-                // Настройка под MarkdownV2 (Telegram):
-                // Telegram: *жирный*, _курсив_, __подчеркнутый__, ~зачеркнутый~
-                // markdown-it по умолчанию: *курсив* / _курсив_, **жирный** / __жирный__
-                // Для точного соответствия может потребоваться кастомизация правил или плагины:
-                // - Для __подчеркнутого__: можно использовать markdown-it-underline (если подключен)
-                //   md.use(window.markdownitUnderline);
-                // - Для *жирный* и _курсив_ как в Telegram, может потребоваться более глубокая настройка
-                //   токенизатора markdown-it. Как вариант, можно использовать стандартные правила
-                //   markdown-it (**жирный**, *курсив*) или убедиться, что входной текст им соответствует.
-            });
-
-            let htmlRenderedByMarkdown;
-            try {
-                htmlRenderedByMarkdown = md.render(processedText);
-                contentDivGlobal.innerHTML = htmlRenderedByMarkdown;
-                console.log("[displayFormattedContent] Markdown обработан и HTML установлен.");
-            } catch (e) {
-                console.error("[displayFormattedContent] Ошибка при обработке Markdown:", e);
-                contentDivGlobal.textContent = "Ошибка обработки Markdown. Пожалуйста, проверьте разметку.";
-                return; // Прекращаем выполнение если Markdown сломался
-            }
-            
-            // Отладочный вывод HTML после markdown-it, но до KaTeX
-            // console.log("[DEBUG] HTML после markdown-it:\n", contentDivGlobal.innerHTML);
-
-            // Шаг 3: Рендеринг LaTeX в плейсхолдеры
-            contentDivGlobal.querySelectorAll('.latex-placeholder').forEach(el => {
-                const id = parseInt(el.dataset.latexId);
-                const latexData = latexParts[id];
-                if (latexData) {
-                    try {
-                        window.katex.render(latexData.content, el, {
-                            throwOnError: false, // Установите true для отладки ошибок KaTeX
-                            displayMode: latexData.displayMode,
-                            // macros: {"\\RR": "\\mathbb{R}"} // Пример пользовательских макросов
-                        });
-                    } catch (e) {
-                        console.error(`[displayFormattedContent] Ошибка рендеринга KaTeX для ID ${id} (содержимое: "${latexData.content.substring(0,30)}...") :`, e);
-                        el.textContent = `[Ошибка LaTeX: ${latexData.content.substring(0,20)}...]`;
-                        // Для лучшего отображения ошибок KaTeX, убедитесь, что CSS KaTeX подключен
-                        // и содержит стили для .katex-error или .katex-parse-error
-                    }
-                } else {
-                     console.warn(`[displayFormattedContent] Не найдены данные LaTeX для плейсхолдера с ID ${id}`);
-                     el.textContent = "[Не найден LaTeX для ID "+id+"]";
-                }
-            });
-            console.log("[displayFormattedContent] Рендеринг LaTeX завершен.");
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            console.log("[DOMContentLoaded] DOM полностью загружен и разобран.");
-            const tg = window.Telegram.WebApp;
-            tg.ready(); 
-            tg.expand(); 
-
-            const closeButtonContainer = document.getElementById('closeButtonContainer');
-            const closeButton = document.getElementById('closeButton');
-
-            if (tg.platform === 'unknown') {
-                document.body.classList.add('platform-unknown');
-            } else {
-                closeButtonContainer.style.display = 'block';
-            }
-
-            closeButton.addEventListener('click', function() {
-                tg.close();
-            });
-
-            if (tg.themeParams) {
-                console.log("[DOMContentLoaded] Применение темы Telegram.");
-                document.body.style.backgroundColor = tg.themeParams.bg_color || '#ffffff';
-                document.body.style.color = tg.themeParams.text_color || '#000000';
-                closeButton.style.backgroundColor = tg.themeParams.button_color || '#007bff';
-                closeButton.style.color = tg.themeParams.button_text_color || '#ffffff';
-                if (tg.themeParams.secondary_bg_color) {
-                    closeButtonContainer.style.backgroundColor = tg.themeParams.secondary_bg_color;
-                }
-                 // Обновим стили для кода и pre на основе темы
-                const hintColor = tg.themeParams.hint_color || '#f0f0f0';
-                const textColor = tg.themeParams.text_color || '#000000';
-                const secondaryBgColor = tg.themeParams.secondary_bg_color || '#f0f0f0';
-                const subtitleTextColor = tg.themeParams.subtitle_text_color || '#555';
-
-
-                const styleSheet = document.styleSheets[0]; // Предполагаем, что наши стили в первом <style> теге или CSS файле
-                try {
-                    // Этот блок может быть сложным, если стили разбросаны или их много.
-                    // Проще всего было бы определить CSS переменные и менять их.
-                    // Но для прямого изменения:
-                    Array.from(styleSheet.cssRules).forEach(rule => {
-                        if (rule.selectorText === '#content code') {
-                            rule.style.backgroundColor = hintColor;
-                            rule.style.color = textColor;
-                        } else if (rule.selectorText === '#content pre') {
-                            rule.style.backgroundColor = hintColor;
-                        } else if (rule.selectorText === '#content blockquote') {
-                           rule.style.borderLeftColor = hintColor;
-                           rule.style.color = subtitleTextColor;
-                        } else if (rule.selectorText === '#content th') {
-                           rule.style.backgroundColor = secondaryBgColor;
-                        } else if (rule.selectorText === '#content th, #content td') {
-                           rule.style.borderColor = hintColor;
-                        }
+        // Инициализация Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        
+        // Конфигурация MathJax
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                processEnvironments: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+                ignoreHtmlClass: 'no-mathjax'
+            },
+            startup: {
+                pageReady: () => {
+                    return MathJax.startup.defaultPageReady().then(() => {
+                        console.log('MathJax готов');
                     });
-                } catch (e) {
-                    console.warn("Не удалось динамически обновить все стили под тему Telegram: ", e);
                 }
             }
-
-            const urlParams = new URLSearchParams(window.location.search);
-            const encodedData = urlParams.get('data');
-            console.log("[DOMContentLoaded] Получены encodedData из URL:", encodedData ? encodedData.substring(0,100) + "..." : "null");
-
-            if (encodedData) {
-                try {
-                    console.log("[DOMContentLoaded] Попытка декодирования данных...");
-                    // Порядок: URL-декодирование компонента, затем Base64-декодирование, затем TextDecoder
-                    const base64Decoded = atob(decodeURIComponent(encodedData));                       
-                    const uint8Array = new Uint8Array(base64Decoded.length);
-                    for (let i = 0; i < base64Decoded.length; i++) {
-                        uint8Array[i] = base64Decoded.charCodeAt(i);
-                    }
-                    textToDisplay = new TextDecoder().decode(uint8Array); // UTF-8 по умолчанию
-                    console.log("[DOMContentLoaded] Данные успешно декодированы. textToDisplay (начало):", textToDisplay ? textToDisplay.substring(0,200) + "..." : "null");
-                } catch (e) {
-                    console.error("[DOMContentLoaded] Ошибка декодирования данных из URL:", e);
-                    let errorMessage = "Ошибка отображения данных (не удалось декодировать).\n\n";
-                    if (e.name) errorMessage += `Тип: ${e.name}\n`;
-                    if (e.message) errorMessage += `Сообщение: ${e.message}\n`;
-                    contentDivGlobal.textContent = errorMessage; 
-                    textToDisplay = null; 
-                }
-            } else {
-                console.log("[DOMContentLoaded] Параметр 'data' в URL отсутствует.");
-                contentDivGlobal.textContent = "Нет данных для отображения (параметр 'data' отсутствует).";
-                textToDisplay = null;
+        };
+        
+        // Класс для обработки контента
+        class ContentProcessor {
+            constructor() {
+                this.contentEl = document.getElementById('content');
             }
             
-            domReady = true;
-            // Вызываем основную функцию рендеринга.
-            // setTimeout гарантирует, что это произойдет после текущего стека вызовов,
-            // давая defer-скриптам (KaTeX) шанс полностью загрузиться.
-            setTimeout(displayFormattedContent, 0); 
+            async init() {
+                try {
+                    // Получаем данные из URL
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const encodedData = urlParams.get('data');
+                    
+                    if (!encodedData) {
+                        throw new Error('Данные не найдены');
+                    }
+                    
+                    // Декодируем данные
+                    const decodedData = this.decodeData(encodedData);
+                    
+                    // Обрабатываем и отображаем контент
+                    await this.processContent(decodedData);
+                    
+                } catch (error) {
+                    this.showError(error.message);
+                }
+            }
+            
+            decodeData(encodedData) {
+                try {
+                    // URL decode -> Base64 decode -> UTF-8 decode
+                    const base64 = decodeURIComponent(encodedData);
+                    const bytes = atob(base64);
+                    const text = decodeURIComponent(escape(bytes));
+                    return text;
+                } catch (e) {
+                    throw new Error('Ошибка декодирования данных');
+                }
+            }
+            
+            async processContent(text) {
+                // Конвертируем Markdown в HTML
+                const html = this.markdownToHtml(text);
+                
+                // Отображаем контент
+                this.contentEl.innerHTML = html;
+                
+                // Обрабатываем код
+                this.highlightCode();
+                
+                // Добавляем кнопки копирования
+                this.addCopyButtons();
+                
+                // Рендерим математику
+                await this.renderMath();
+            }
+            
+            markdownToHtml(markdown) {
+                let html = markdown;
+                
+                // Экранируем HTML
+                html = html.replace(/&/g, '&amp;')
+                          .replace(/</g, '&lt;')
+                          .replace(/>/g, '&gt;');
+                
+                // Сохраняем блоки кода
+                const codeBlocks = [];
+                html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+                    const placeholder = `__CODE_BLOCK_${codeBlocks.length}__`;
+                    codeBlocks.push({ lang: lang || 'plaintext', code: code.trim() });
+                    return placeholder;
+                });
+                
+                // Сохраняем inline код
+                const inlineCodes = [];
+                html = html.replace(/`([^`]+)`/g, (match, code) => {
+                    const placeholder = `__INLINE_CODE_${inlineCodes.length}__`;
+                    inlineCodes.push(code);
+                    return placeholder;
+                });
+                
+                // Сохраняем математику
+                const mathBlocks = [];
+                const mathInlines = [];
+                
+                // Блочная математика
+                html = html.replace(/\\\[([\s\S]*?)\\\]/g, (match, math) => {
+                    const placeholder = `__MATH_BLOCK_${mathBlocks.length}__`;
+                    mathBlocks.push(math);
+                    return placeholder;
+                });
+                
+                html = html.replace(/\$\$([\s\S]*?)\$\$/g, (match, math) => {
+                    const placeholder = `__MATH_BLOCK_${mathBlocks.length}__`;
+                    mathBlocks.push(math);
+                    return placeholder;
+                });
+                
+                // Инлайн математика
+                html = html.replace(/\\\((.*?)\\\)/g, (match, math) => {
+                    const placeholder = `__MATH_INLINE_${mathInlines.length}__`;
+                    mathInlines.push(math);
+                    return placeholder;
+                });
+                
+                html = html.replace(/\$([^$\n]+)\$/g, (match, math) => {
+                    const placeholder = `__MATH_INLINE_${mathInlines.length}__`;
+                    mathInlines.push(math);
+                    return placeholder;
+                });
+                
+                // Заголовки
+                html = html.replace(/^######\s+(.+)$/gm, '<h6>$1</h6>');
+                html = html.replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>');
+                html = html.replace(/^####\s+(.+)$/gm, '<h4>$1</h4>');
+                html = html.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+                html = html.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+                html = html.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+                
+                // Жирный текст
+                html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+                html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+                
+                // Курсив
+                html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+                html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+                
+                // Зачеркнутый
+                html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+                
+                // Списки
+                html = html.replace(/^\* (.+)$/gm, '<li>$1</li>');
+                html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+                html = html.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
+                
+                // Оборачиваем элементы списка
+                html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => {
+                    return '<ul>' + match + '</ul>';
+                });
+                
+                // Цитаты
+                html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+                
+                // Горизонтальная линия
+                html = html.replace(/^---+$/gm, '<hr>');
+                
+                // Ссылки
+                html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+                
+                // Параграфы
+                html = html.replace(/\n\n/g, '</p><p>');
+                html = '<p>' + html + '</p>';
+                
+                // Очистка пустых параграфов
+                html = html.replace(/<p>\s*<\/p>/g, '');
+                html = html.replace(/<p>(<h[1-6]>)/g, '$1');
+                html = html.replace(/(<\/h[1-6]>)<\/p>/g, '$1');
+                html = html.replace(/<p>(<ul>)/g, '$1');
+                html = html.replace(/(<\/ul>)<\/p>/g, '$1');
+                html = html.replace(/<p>(<blockquote>)/g, '$1');
+                html = html.replace(/(<\/blockquote>)<\/p>/g, '$1');
+                html = html.replace(/<p>(<hr>)<\/p>/g, '$1');
+                
+                // Восстанавливаем код
+                codeBlocks.forEach((block, i) => {
+                    const codeHtml = `<pre><code class="language-${block.lang} no-mathjax">${this.escapeHtml(block.code)}</code></pre>`;
+                    html = html.replace(`__CODE_BLOCK_${i}__`, codeHtml);
+                });
+                
+                inlineCodes.forEach((code, i) => {
+                    html = html.replace(`__INLINE_CODE_${i}__`, `<code class="no-mathjax">${this.escapeHtml(code)}</code>`);
+                });
+                
+                // Восстанавливаем математику
+                mathBlocks.forEach((math, i) => {
+                    html = html.replace(`__MATH_BLOCK_${i}__`, `<div class="math-block">\\[${math}\\]</div>`);
+                });
+                
+                mathInlines.forEach((math, i) => {
+                    html = html.replace(`__MATH_INLINE_${i}__`, `<span class="math-inline">\\(${math}\\)</span>`);
+                });
+                
+                return html;
+            }
+            
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            
+            highlightCode() {
+                document.querySelectorAll('pre code').forEach((block) => {
+                    // Пропускаем блоки с классом no-mathjax (они уже обработаны)
+                    if (!block.classList.contains('no-mathjax')) {
+                        hljs.highlightElement(block);
+                    } else {
+                        // Для блоков с no-mathjax все равно применяем подсветку
+                        hljs.highlightElement(block);
+                    }
+                });
+            }
+            
+            addCopyButtons() {
+                document.querySelectorAll('pre').forEach((pre) => {
+                    const button = document.createElement('button');
+                    button.className = 'copy-button';
+                    button.textContent = 'Копировать';
+                    button.onclick = () => this.copyCode(pre, button);
+                    pre.style.position = 'relative';
+                    pre.appendChild(button);
+                });
+            }
+            
+            async copyCode(pre, button) {
+                const code = pre.querySelector('code');
+                const text = code.textContent;
+                
+                try {
+                    await navigator.clipboard.writeText(text);
+                    button.textContent = '✓ Скопировано';
+                    setTimeout(() => {
+                        button.textContent = 'Копировать';
+                    }, 2000);
+                } catch (err) {
+                    console.error('Ошибка копирования:', err);
+                    button.textContent = '✗ Ошибка';
+                    setTimeout(() => {
+                        button.textContent = 'Копировать';
+                    }, 2000);
+                }
+            }
+            
+            async renderMath() {
+                try {
+                    await MathJax.typesetPromise();
+                } catch (err) {
+                    console.error('Ошибка рендеринга математики:', err);
+                }
+            }
+            
+            showError(message) {
+                this.contentEl.innerHTML = `
+                    <div class="error">
+                        <strong>Ошибка:</strong> ${message}
+                    </div>
+                `;
+            }
+        }
+        
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', () => {
+            const processor = new ContentProcessor();
+            processor.init();
         });
     </script>
 </body>
